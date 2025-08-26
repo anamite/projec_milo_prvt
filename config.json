@@ -1,0 +1,41 @@
+{
+    "wake_words": ["hey assistant", "hello assistant"],
+    "tools": [
+        {
+            "tool_name": "get_time",
+            "tool_description": "Get the current time and read it out loud",
+            "input_required": false,
+            "tool_input_variables": []
+        },
+        {
+            "tool_name": "get_weather",
+            "tool_description": "Get weather information and forecast",
+            "input_required": true,
+            "tool_input_variables": ["location"]
+        },
+        {
+            "tool_name": "turn_on_lights",
+            "tool_description": "Turn on lights in specified room or all lights",
+            "input_required": true,
+            "tool_input_variables": ["room"]
+        },
+        {
+            "tool_name": "turn_off_lights",
+            "tool_description": "Turn off lights in specified room or all lights",
+            "input_required": true,
+            "tool_input_variables": ["room"]
+        },
+        {
+            "tool_name": "play_music",
+            "tool_description": "Play music or specific song",
+            "input_required": true,
+            "tool_input_variables": ["song_name"]
+        },
+        {
+            "tool_name": "set_timer",
+            "tool_description": "Set a timer for specified duration",
+            "input_required": true,
+            "tool_input_variables": ["duration"]
+        }
+    ]
+}
