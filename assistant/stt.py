@@ -35,6 +35,37 @@ class SpeechToText:
         else:
             logger.info("Vosk not available; using dummy STT")
 
+    def transcribe_streaming(self, audio_data) -> tuple[Optional[str], bool]:
+        """Transcribe audio bytes with streaming support.
+        
+        Returns:
+            tuple: (text, is_final) where is_final indicates if this is a complete result
+        """
+        logger.debug("STT.transcribe_streaming called", extra={"audio_len": len(audio_data) if hasattr(audio_data, '__len__') else 'unknown'})
+
+        if not VOSK_AVAILABLE or not self.recognizer:
+            # For testing without Vosk, simulate some recognition
+            if len(audio_data) > 1000:  # Only process non-trivial audio chunks
+                return "sample transcription for testing", True
+            return None, False
+
+        try:
+            if self.recognizer.AcceptWaveform(audio_data):
+                result_raw = self.recognizer.Result()
+                logger.debug(f"Vosk final result: {result_raw}")
+                result = json.loads(result_raw)
+                text = result.get('text', '').strip()
+                return text if text else None, True
+            else:
+                partial_raw = self.recognizer.PartialResult()
+                logger.debug(f"Vosk partial result: {partial_raw}")
+                partial = json.loads(partial_raw)
+                text = partial.get('partial', '').strip()
+                return text if text else None, False
+        except Exception:
+            logger.exception("STT streaming transcription error")
+            return None, False
+
     def transcribe(self, audio_data) -> Optional[str]:
         """Transcribe audio bytes into text.
 

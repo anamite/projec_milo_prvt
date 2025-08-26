@@ -67,6 +67,11 @@ class AudioCapture:
             except Exception as e:
                 logger.error(f"Dummy audio capture error: {e}")
 
+    def stop_capture(self):
+        """Stop audio capture."""
+        self.is_recording = False
+        logger.info("Audio capture stopped")
+
     def stop(self):
         """Stop audio capture and clean up."""
         self.is_recording = False
