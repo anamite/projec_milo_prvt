@@ -149,4 +149,82 @@ class CommandExecutor:
         elif command == "get weather":
             msg = "Today’s weather is sunny, 22 degrees."
         elif command == "get time":
-            msg = f"The current time
+            msg = f"The current time is {time.strftime('%H:%M:%S')}."
+        elif command == "set timer":
+            msg = "Setting a five minute timer."
+        elif command == "play music or song":
+            msg = f"Playing {song}." if song else "Playing music."
+        elif command == "call for help":
+            msg = "Emergency call initiated."
+        else:
+            msg = "I will ask the assistant for that."
+        print(f"[exec] {msg}")
+        self.tts.speak(msg)
+        return msg
+
+
+class AssistantApp:
+    def __init__(self, model_lang="en-us", asr_sr=16000, wakewords=("alexa", "hey_jarvis"), wake_threshold=0.5,
+                 tts_model="KittenML/kitten-tts-nano-0.1", tts_voice="expr-voice-2-f"):
+        # Modules
+        self.wake = WakeWordDetector(wakewords=wakewords, samplerate=asr_sr, blocksize=1280, threshold=wake_threshold)
+        self.stt = STTEngine(model_lang=model_lang, samplerate=asr_sr, command_blocksize=8000, silence_timeout=2.0)
+        self.intent = IntentMatcher()
+        self.tts = TTSEngine(model_id=tts_model, voice=tts_voice, out_sr=24000)
+        self.exec = CommandExecutor(self.tts)
+
+    def run(self):
+        print("=" * 60)
+        print("[app] Voice assistant ready. Sequence: wake → prompt → transcribe/process → speak result")
+        print("=" * 60)
+        while True:
+            # 1) Wake
+            wake_name, score = self.wake.listen_until_wake()
+            # 2) Speak prompt
+            self.tts.speak("Yes? I'm listening.")
+            # 3) Transcribe
+            print("[app] Recording command now ...")
+            text = self.stt.transcribe_once()
+            if not text:
+                print("[app] No speech detected, returning to wake mode.")
+                continue
+            print(f"[app] Heard: '{text}'")
+            # 4) Process intent
+            cmd, conf, song, sconf = self.intent.match(text)
+            print(f"[app] Matched command: '{cmd}' ({conf:.1f}%)")
+            if song:
+                print(f"[app] Matched song: '{song}' ({sconf:.1f}%)")
+            # 5) Execute and speak output
+            self.exec.execute(cmd, song)
+            print("[app] Cycle complete. Waiting for next wake word ...\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Sequential Voice Assistant (Wake → Speak → STT → Execute → TTS)")
+    parser.add_argument("-m", "--model", type=str, default="en-us", help="VOSK language code (default: en-us)")
+    parser.add_argument("-r", "--samplerate", type=int, default=16000, help="ASR sample rate (default: 16000)")
+    parser.add_argument("-w", "--wakewords", type=str, default="alexa,hey_jarvis", help="Comma-separated wakewords")
+    parser.add_argument("-t", "--threshold", type=float, default=0.5, help="Wake score threshold (default: 0.5)")
+    parser.add_argument("-v", "--voice", type=str, default="expr-voice-2-f", help="KittenTTS voice id")
+    parser.add_argument("-l", "--list-devices", action="store_true", help="List audio devices and exit")
+    args = parser.parse_args()
+
+    if args.list_devices:
+        print(sd.query_devices())
+        return
+
+    wakewords = tuple(x.strip() for x in args.wakewords.split(",") if x.strip())
+
+    app = AssistantApp(
+        model_lang=args.model,
+        asr_sr=args.samplerate,
+        wakewords=wakewords,
+        wake_threshold=args.threshold,
+        tts_model="KittenML/kitten-tts-nano-0.1",
+        tts_voice=args.voice,
+    )
+    app.run()
+
+
+if __name__ == "__main__":
+    main()
