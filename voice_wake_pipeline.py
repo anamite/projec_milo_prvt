@@ -19,7 +19,7 @@ class VoiceAssistant:
         # Initialize models
         print("Loading models...")
         self.vosk_model = Model(lang=model_lang)
-        self.wake_model = WakeWordModel(wakeword_models=["alexa", "hey_jarvis"])
+        self.wake_model = WakeWordModel(wakeword_models=["alexa", "hey_jarvis"], inference_framework="onnx")
         self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
 
         # Your commands
@@ -276,3 +276,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
