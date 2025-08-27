@@ -16,26 +16,55 @@ from kittentts import KittenTTS
 
 
 class WakeWordDetector:
-    def __init__(self, wakewords=("alexa", "hey_jarvis"), samplerate=16000, blocksize=1280, threshold=0.5):
+    def __init__(self, wakewords=("alexa", "hey_jarvis"), samplerate=16000,
+                 blocksize=1280, threshold=0.4, channels=1, device=None):
         self.sr = samplerate
-        self.blocksize = blocksize  # 1280 samples @16k suggested by openWakeWord demo
+        self.blocksize = blocksize
         self.threshold = threshold
+        self.channels = channels
+        self.device = device
         self.model = WakeWordModel(wakeword_models=list(wakewords), inference_framework="onnx")
 
     def listen_until_wake(self):
+        import numpy as np, sounddevice as sd, time
         print("[wake] Starting microphone stream for wake-word detection ...")
-        with sd.RawInputStream(samplerate=self.sr, blocksize=self.blocksize, dtype="float32", channels=1) as stream:
-            print("[wake] Say a wake word (e.g., alexa / hey jarvis) ...")
+        print("[wake] Say a wake word (e.g., alexa / hey jarvis) ...")
+        # Use int16 to match many openWakeWord snippets; convert to mono if stereo
+        with sd.RawInputStream(
+            samplerate=self.sr,
+            blocksize=self.blocksize,
+            dtype="int16",
+            channels=self.channels,
+            device=self.device
+        ) as stream:
+            t0 = time.time()
             while True:
-                data, _ = stream.read(self.blocksize)
-                samples = np.frombuffer(data, dtype=np.float32)
-                # Predict on 1 x 1280 chunk
-                scores = self.model.predict(samples)
-                # Check threshold across known models
-                for name, score in scores.items():
-                    if score >= self.threshold:
-                        print(f"[wake] Wake word '{name}' detected (score={score:.2f})")
-                        return name, float(score)
+                data, overflowed = stream.read(self.blocksize)
+                if overflowed:
+                    print("[wake] Warning: input overflow; consider larger blocksize or lower CPU load")
+                audio = np.frombuffer(data, dtype=np.int16)
+                if self.channels == 2:
+                    audio = audio[::2]  # take left channel
+
+                # Basic RMS debug (convert to float for RMS)
+                rms = float(np.sqrt(np.mean((audio.astype(np.float32) / 32768.0) ** 2)) + 1e-12)
+                if time.time() - t0 > 1.0:
+                    print(f"[wake] rms={rms:.5f}")
+                    t0 = time.time()
+
+                # Run wake inference on 1280-sample chunks
+                if audio.shape == self.blocksize:
+                    pred = self.model.predict(audio)
+                    # Optional: show max score across models
+                    name_max, score_max = max(pred.items(), key=lambda kv: kv[11])
+                    # Print infrequently to avoid spam
+                    if score_max > 0.2:
+                        print(f"[wake] max={name_max} score={score_max:.2f}")
+
+                    for name, score in pred.items():
+                        if score >= self.threshold:
+                            print(f"[wake] Wake word '{name}' detected (score={score:.2f})")
+                            return name, float(score)
 
 
 class STTEngine:
