@@ -107,11 +107,11 @@ class VoiceAssistant:
         }
         
         payload = {
-            "model": "anthropic/claude-3.5-sonnet",  # You can change this model
+            "model": "openai/gpt-oss-120b",  # You can change this model
             "messages": [
                 {
                     "role": "system", 
-                    "content": "You are a helpful voice assistant. Give brief, conversational responses suitable for text-to-speech. Keep responses under 50 words when possible."
+                    "content": "You are a helpful assistant. Give brief, conversational responses. limit to 3 to 5 words as possible."
                 },
                 {
                     "role": "user", 
@@ -202,13 +202,13 @@ class VoiceAssistant:
         song_confidence = 0
 
         # If it's a music command, also check songs
-        if command_confidence > 20 and best_command == "play music or song":
+        if command_confidence > 50 and best_command == "play music or song":
             song_similarities = cosine_similarity([user_embedding], self.song_embeddings)
             best_song_index = song_similarities.argmax()
             song_match = self.songs[best_song_index]
             song_confidence = song_similarities[0, best_song_index] * 100
 
-        if command_confidence < 20:
+        if command_confidence < 80:
             best_command = "Lets ask LLM"
 
         return best_command, command_confidence, song_match, song_confidence
